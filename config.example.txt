@@ -1,0 +1,9 @@
+# Salin sebagai .dev.vars untuk preview lokal. File .dev.vars tidak diunggah.
+DEEPSEEK_API_KEY=""
+DEEPSEEK_MODEL="deepseek-flash"
+FIREBASE_API_KEY=""
+FIREBASE_AUTH_DOMAIN=""
+FIREBASE_PROJECT_ID=""
+FIREBASE_STORAGE_BUCKET=""
+FIREBASE_MESSAGING_SENDER_ID=""
+FIREBASE_APP_ID=""

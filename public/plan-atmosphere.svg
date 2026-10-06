@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 500" fill="none">
+  <defs><radialGradient id="glow"><stop stop-color="#2789D8" stop-opacity=".18"/><stop offset="1" stop-color="#2789D8" stop-opacity="0"/></radialGradient><linearGradient id="line"><stop stop-color="#50B0FF" stop-opacity="0"/><stop offset=".5" stop-color="#50B0FF" stop-opacity=".24"/><stop offset="1" stop-color="#50B0FF" stop-opacity="0"/></linearGradient></defs>
+  <ellipse cx="600" cy="230" rx="540" ry="230" fill="url(#glow)"/>
+  <g stroke="url(#line)"><ellipse cx="600" cy="440" rx="520" ry="220"/><ellipse cx="600" cy="440" rx="450" ry="190"/><ellipse cx="600" cy="440" rx="380" ry="160"/><ellipse cx="600" cy="440" rx="310" ry="130"/></g>
+</svg>
