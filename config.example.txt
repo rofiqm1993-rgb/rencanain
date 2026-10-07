@@ -7,3 +7,20 @@ FIREBASE_PROJECT_ID=""
 FIREBASE_STORAGE_BUCKET=""
 FIREBASE_MESSAGING_SENDER_ID=""
 FIREBASE_APP_ID=""
+# JSON service account server: satu baris dengan newline private_key ter-escape.
+FIREBASE_SERVICE_ACCOUNT_JSON='{}'
+BETA_FREE_PRD_LIMIT="1"
+BETA_PRO_PRD_LIMIT="30"
+BETA_FREE_QUOTA_MODE="once"
+# Midtrans. Semua kunci/ID di Cloudflare disimpan sebagai Secret, bukan vars/Text.
+# MIDTRANS_SANDBOX="1" memilih tiga binding Sandbox. Pada Firebase produksi, batasi ke satu UID akun uji.
+MIDTRANS_SERVER_KEY=""
+MIDTRANS_CLIENT_KEY=""
+MIDTRANS_MERCHANT_ID=""
+MIDTRANS_SANDBOX_SERVER_KEY=""
+MIDTRANS_SANDBOX_CLIENT_KEY=""
+MIDTRANS_SANDBOX_MERCHANT_ID=""
+MIDTRANS_SANDBOX_TEST_UID=""
+MIDTRANS_SANDBOX=""
+MIDTRANS_PRO_PRICE="49000"
+MIDTRANS_PRO_DAYS="30"

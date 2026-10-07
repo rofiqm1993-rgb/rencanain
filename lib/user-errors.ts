@@ -1,4 +1,4 @@
-export type ErrorContext = "generate" | "login" | "load" | "save" | "task" | "config";
+export type ErrorContext = "generate" | "login" | "load" | "save" | "task" | "config" | "pay";
 export class UserFacingError extends Error {
   constructor(public readonly code: string, message: string) { super(message); this.name = "UserFacingError"; }
 }
@@ -27,6 +27,7 @@ export function userError(error: unknown, context: ErrorContext): string {
     "auth/account-exists-with-different-credential": "Email ini memakai metode login lain. Masuk dengan metode yang digunakan saat mendaftar.",
   };
   if (auth[code]) return auth[code];
+  if (code === "invalid-argument") return "Format data proyek belum dapat disimpan. Ekspor PRD terlebih dahulu; pengelola perlu memeriksa format penyimpanan aplikasi.";
   if (code === "permission-denied") return "Akses proyek belum diizinkan. Pastikan Anda memakai akun yang benar. Jika tetap gagal, pengelola perlu memeriksa aturan akses Firestore.";
   if (code === "unauthenticated") return "Sesi akun sudah berakhir. Masuk kembali untuk mengakses proyek; draft di browser tetap tersedia.";
   if (["unavailable", "deadline-exceeded", "aborted"].includes(code)) return context === "load" ? "Proyek belum dapat dimuat. Periksa koneksi internet lalu tekan Coba lagi." : "Perubahan belum berhasil disimpan. Periksa koneksi lalu coba lagi; tampilan belum ditandai berhasil.";
@@ -42,9 +43,10 @@ export function userError(error: unknown, context: ErrorContext): string {
     generate: "PRD belum dapat disusun. Periksa koneksi lalu coba lagi, atau pilih contoh lokal. Ide dan jawaban Anda tetap tersedia.",
     login: "Login belum berhasil. Coba lagi atau gunakan metode login lain.",
     load: "Proyek belum dapat dimuat. Tekan Coba lagi; data tersimpan tidak dihapus.",
-    save: "Proyek belum berhasil disimpan. PRD tetap ada di halaman ini dan dapat diekspor. Coba lagi setelah koneksi pulih.",
+    save: "Proyek belum berhasil disimpan. PRD tetap ada di halaman ini dan dapat diekspor. Coba lagi; jika berulang, pengelola perlu memeriksa penyimpanan aplikasi.",
     task: "Perubahan tugas belum berhasil disimpan. Status sebelumnya tetap dipakai. Silakan coba lagi.",
     config: "Konfigurasi aplikasi belum dapat dimuat. Muat ulang saat koneksi pulih; mode demo tetap tersedia.",
+    pay: "Pembayaran belum dapat dimulai. Periksa koneksi lalu coba lagi; tidak ada biaya yang terpotong.",
   };
   return fallback[context];
 }

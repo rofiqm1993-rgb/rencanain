@@ -14,10 +14,10 @@ const architectureSchema = z.object({ serverRoutes: z.array(text), identityAndDa
 const emptyArchitecture = { serverRoutes: [], identityAndData: [], paymentNotifications: [] };
 export const prdSchema = z.object({ title: text, summary: text, audience: z.array(text).min(1).max(8), goals: z.array(text).min(1).max(8), outOfScope: z.array(text).min(1).max(8), phases: z.array(z.object({ id: text, title: text, goal: text, features: z.array(featureSchema).min(2).max(4) })).min(3).max(3), userFlows: z.array(userFlowSchema).max(12).default([]), permissionMatrix: z.array(permissionSchema).max(20).default([]), systemAcceptance: z.array(acceptanceCriterionSchema).max(12).default([]), unresolvedDecisions: z.array(text).max(20).default([]), dataModel: z.array(z.object({ name: text, fields: z.array(text).min(1).max(20) })).min(1).max(12), risks: z.array(z.object({ risk: text, mitigation: text })).min(1).max(10), assumptions: z.array(text).max(12), designSystem: designSchema.default(DESIGN_STANDARD), technicalArchitecture: architectureSchema.default(emptyArchitecture) });
 export type PRD = z.infer<typeof prdSchema>;
-export type GeneratedPlan = { prd: PRD; source: "ai" | "example"; model?: string; normalized: string[]; draft: ClarificationDraft; stack: TechStack; generatedAt: string };
+export type GeneratedPlan = { prd: PRD; source: "ai" | "example"; model?: string; generationId?: string; normalized: string[]; draft: ClarificationDraft; stack: TechStack; generatedAt: string };
 export type Project = GeneratedPlan & { id: string; savedAt: string; tasks: Record<string, true> };
 const monetizationSchema = z.object({ entitlements: z.array(z.string().max(160)).max(8), quota: z.array(z.string().max(160)).max(8), paymentFailure: z.array(z.string().max(160)).max(8) });
-export const generatedPlanSchema = z.object({ prd: prdSchema, source: z.enum(["ai", "example"]), model: z.string().optional(), normalized: z.array(z.string()).default([]), draft: z.object({ idea: z.string().max(4000), answers: z.array(z.array(z.string().max(160))).length(5), monetization: monetizationSchema.optional(), step: z.number().int().min(0).max(7), completed: z.boolean() }), stack: z.custom<TechStack>(isTechStack), generatedAt: z.string().datetime() });
+export const generatedPlanSchema = z.object({ prd: prdSchema, source: z.enum(["ai", "example"]), model: z.string().optional(), generationId: z.string().uuid().optional(), normalized: z.array(z.string()).default([]), draft: z.object({ idea: z.string().max(4000), answers: z.array(z.array(z.string().max(160))).length(5), monetization: monetizationSchema.optional(), step: z.number().int().min(0).max(7), completed: z.boolean() }), stack: z.custom<TechStack>(isTechStack), generatedAt: z.string().datetime() });
 export const projectSchema = generatedPlanSchema.extend({ id: z.string().min(1), savedAt: z.string().datetime(), tasks: z.record(z.literal(true)).default({}) });
 export function taskList(prd: PRD) { return prd.phases.flatMap(phase => phase.features.flatMap(feature => feature.subfeatures.map(task => ({ ...task, phase: phase.title, phaseId: phase.id, feature: feature.title })))); }
 
@@ -170,7 +170,7 @@ export function assessPRD(plan: GeneratedPlan): { readyForTechnicalReview: boole
   if (!p.userFlows.length) issues.push("User Flow belum didefinisikan.");
   if (p.unresolvedDecisions.length) issues.push(`${p.unresolvedDecisions.length} keputusan masih terbuka.`);
   if (plan.normalized.some(value => ["phases", "userFlows", "permissionMatrix"].includes(value))) issues.push("Bagian inti pernah diganti dengan contoh lokal; tinjau isi dan keterkaitannya.");
-  const vague = /<[^>]+>|belum (?:dirinci|ditentukan)|bangun alur utama|pengguna dapat menjalankan kebutuhan/i;
+  const vague = /<[a-z][a-z _:/-]{2,80}>|belum (?:dirinci|ditentukan)|bangun alur utama|pengguna dapat menjalankan kebutuhan/i;
   if (p.phases.some(phase => phase.features.some(feature => feature.acceptance.some(item => vague.test(`${item.precondition} ${item.action} ${item.expected}`))))) issues.push("Sebagian kriteria penerimaan belum memiliki kondisi, tindakan, dan hasil yang cukup spesifik.");
   if (hasMonetizationIntent(plan.draft)) {
     const extra = monetizationAnswers(plan.draft);

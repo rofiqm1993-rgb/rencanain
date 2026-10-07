@@ -10,8 +10,10 @@ await build({
     b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: "env", namespace: "fixture" }));
     b.onResolve({ filter: /^firebase\/firestore$/ }, () => ({ path: "firestore", namespace: "fixture" }));
     b.onResolve({ filter: /firebase-client$/ }, () => ({ path: "client", namespace: "fixture" }));
+    b.onResolve({ filter: /server-quota$/ }, () => ({ path: "quota", namespace: "fixture" }));
+    b.onResolve({ filter: /server-auth$/ }, () => ({ path: "auth", namespace: "fixture" }));
     b.onResolve({ filter: /^@\// }, a => ({ path: resolve(process.cwd(), a.path.replace("@/", "")) + ".ts" }));
-    b.onLoad({ filter: /.*/, namespace: "fixture" }, a => ({ contents: a.path === "env" ? 'export const env = { DEEPSEEK_API_KEY:"fixture-key-never-used-external", DEEPSEEK_MODEL:"fixture-model", FIREBASE_API_KEY:"fixture", FIREBASE_AUTH_DOMAIN:"fixture.invalid", FIREBASE_PROJECT_ID:"fixture", FIREBASE_STORAGE_BUCKET:"fixture", FIREBASE_MESSAGING_SENDER_ID:"fixture", FIREBASE_APP_ID:"fixture" };' : a.path === "client" ? 'export const firebaseDB = () => ({});' : 'export const collection=(...args)=>args; export const doc=(...args)=>args; export const getDocsFromServer=(...args)=>globalThis.sdkFixture.read(...args); export const setDoc=(...args)=>globalThis.sdkFixture.save(...args); export const updateDoc=(...args)=>globalThis.sdkFixture.update(...args); export const deleteDoc=(...args)=>globalThis.sdkFixture.remove(...args); export const deleteField=()=>"DELETE";', loader: "js" }));
+    b.onLoad({ filter: /.*/, namespace: "fixture" }, a => ({ contents: a.path === "env" ? 'export const env = { DEEPSEEK_API_KEY:"fixture-key-never-used-external", DEEPSEEK_MODEL:"fixture-model", FIREBASE_API_KEY:"fixture", FIREBASE_AUTH_DOMAIN:"fixture.invalid", FIREBASE_PROJECT_ID:"fixture", FIREBASE_STORAGE_BUCKET:"fixture", FIREBASE_MESSAGING_SENDER_ID:"fixture", FIREBASE_APP_ID:"fixture" };' : a.path === "client" ? 'export const firebaseDB = () => ({}); export const firebaseAuth = () => ({ currentUser: { uid: "account" } }); export const authHeaders = async () => ({ Authorization: "Bearer fixture-user-token" });' : a.path === "quota" ? 'export const validRequestId = id => typeof id === "string" && id.length === 36; export const fingerprint = async () => "fixture-hash"; export const quotaService = () => ({ reserve: async () => ({ plan: null, lease: "fixture-lease" }), complete: async (_, id, __, plan) => ({ ...plan, generationId: id }), release: async () => { globalThis.releasedHolds++; } });' : a.path === "auth" ? `import { verifyFirebaseToken as realVerify } from ${JSON.stringify(resolve("lib/server-auth.ts"))}; export const verifyFirebaseToken = (token, project) => token === "fixture-user-token" ? Promise.resolve("account") : realVerify(token, project);` : 'export const collection=(...args)=>args; export const getDocsFromServer=(...args)=>globalThis.sdkFixture.read(...args);', loader: "js", resolveDir: process.cwd() }));
   } }],
 });
 const moduleURL = new URL("../outputs/errors-test-module.mjs", import.meta.url);
@@ -51,13 +53,13 @@ try {
   assert.equal(cloudCalls, 0); navigator.onLine = true;
   // A slow write is still pending, never reported as failed/successful until backend acknowledgment.
   const write = deferred(); let notice = false, acknowledged = false;
-  globalThis.sdkFixture.save = () => { cloudCalls++; return write.promise; };
+  globalThis.fetch = async (_, init) => { cloudCalls++; assert.equal(init.method, "POST"); await write.promise; return Response.json({ ...plan, id: "confirmed-project", savedAt: new Date().toISOString(), tasks: {} }); };
   const saveA = m.projectRepository.save(plan, "account"), saveB = m.projectRepository.save(plan, "account");
   const waiting = m.withPendingNotice(saveA, () => { notice = true; }, 10).then(p => { acknowledged = true; return p; });
   await pause(25); assert(notice); assert.equal(acknowledged, false); assert.equal(cloudCalls, 1);
   write.resolve(); const projectA = await waiting, projectB = await saveB;
   assert.equal(projectA.id, projectB.id); assert(acknowledged);
-  globalThis.sdkFixture.update = async () => { throw { code: "permission-denied" }; };
+  globalThis.fetch = async () => Response.json({ error: "Akun tidak memiliki izin perubahan." }, { status: 403 });
   await assert.rejects(m.projectRepository.setTask(projectA, "p1-f1-t1", true, "account"));
   assert.deepEqual(projectA.tasks, {});
   const slowRead = deferred(); const read = m.readWithTimeout(slowRead.promise, 10);
@@ -80,9 +82,11 @@ try {
   ];
   for (const [i, scenario] of scenarios.entries()) {
     const api = await import(`${moduleURL.href}?case=${i}`); globalThis.fetch = scenario.upstream;
-    const response = await api.POST(new Request("http://localhost:4174/api/generate", { method: "POST", headers: { Origin: "http://localhost:4174", "Content-Type": "application/json" }, body: JSON.stringify({ draft, stack: plan.stack }) }));
+    globalThis.releasedHolds = 0;
+    const response = await api.POST(new Request("http://localhost:4174/api/generate", { method: "POST", headers: { Origin: "http://localhost:4174", Authorization: "Bearer fixture-user-token", "Content-Type": "application/json" }, body: JSON.stringify({ draft, stack: plan.stack, requestId: crypto.randomUUID() }) }));
     assert.equal(response.status, scenario.status, scenario.name);
     const body = await response.json(); assert.equal(typeof body.error, "string"); assert(!body.error.includes("PRIVATE")); assert(!("prd" in body));
+    assert.equal(globalThis.releasedHolds, 1, "Every upstream failure releases its reservation");
   }
   const authApi = await import(`${moduleURL.href}?auth=certificate-outage`);
   globalThis.fetch = async () => new Response("PRIVATE", { status: 503 });

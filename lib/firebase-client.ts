@@ -3,8 +3,9 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth, type User } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { userError } from "./user-errors";
+import type { PaymentInfo } from "./account";
 export type FirebaseConfig = { apiKey: string; authDomain: string; projectId: string; storageBucket: string; messagingSenderId: string; appId: string };
-export type ClientConfig = { firebase: FirebaseConfig | null; aiReady: boolean; model: string };
+export type ClientConfig = { firebase: FirebaseConfig | null; aiReady: boolean; quotaReady?: boolean; model: string; payments?: PaymentInfo };
 let currentConfig: FirebaseConfig | null = null;
 export function configureFirebase(config: FirebaseConfig) {
   currentConfig = config;

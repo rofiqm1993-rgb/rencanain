@@ -2,16 +2,20 @@
 
 Ruang kerja dari ide → kuesioner lima langkah → tech stack → PRD, diagram fase/fitur, dan checklist. Mode demo menyimpan proyek di browser. Akun Firebase menyimpan proyek di `users/{uid}/projects/{projectId}`.
 
+Panduan kuota server, koleksi baru, service account, Rules, dan deployment: [Tahap 1–2](./docs/tahap-1-2.md). Batas awal Beta Gratis 1 PRD AI per akun; Pro 30 PRD per periode Pro 30 hari. Pembayaran Pro lewat Midtrans Snap beserta webhook bertanda tangan ada di [Tahap 3](./docs/tahap-3-pembayaran.md).
+
 ## Menjalankan Rencanain
 
 1. Salin `config.example.txt` sebagai `.dev.vars` dan isi konfigurasi Firebase serta kunci DeepSeek di server. File ini diabaikan Git. Jangan menaruh kunci DeepSeek di variabel `NEXT_PUBLIC_` atau `VITE_`.
 2. Aktifkan Firebase Authentication: Google dan Email/Password. Buat Firestore dan publikasikan isi `firestore.rules` melalui Console.
 3. Jalankan `npm run dev -- --host 127.0.0.1 --port 4174`. Untuk login Google, buka `http://localhost:4174/`; `localhost` sudah termasuk authorized domains proyek. Jika memakai `127.0.0.1`, tambahkan domain tersebut di Firebase Authentication settings.
-4. Setelah mengubah `.dev.vars`, restart server. `/api/config` mengirim hanya konfigurasi Firebase publik, model, dan indikator ketersediaan AI.
+4. Setelah mengubah `.dev.vars`, restart server. `/api/config` mengirim konfigurasi Firebase publik, model, indikator ketersediaan AI, serta ringkasan kesiapan pembayaran tanpa nilai kunci.
 
 Generator AI dipanggil lewat `POST /api/generate` setelah pengguna selesai mengisi kuesioner, memilih stack yang selaras, dan menekan **Susun dengan DeepSeek**. Tidak ada panggilan AI berbayar hanya karena pengguna berpindah halaman. Contoh lokal dipilih terpisah dan selalu diberi label.
 
-Endpoint memvalidasi input, memeriksa asal permintaan, serta memverifikasi Firebase ID token pada production. Demo boleh memanggil AI hanya pada dev server loopback. Batas permintaan adalah 5 per 10 menit per akun/preview dalam memori Worker; batas ini bukan kuota global lintas instance. Timeout 90 detik. Respons AI yang tidak lengkap menampilkan kegagalan; bagian struktur yang dinormalisasi ditampilkan kepada pengguna.
+Pembayaran Pro: `POST /api/transaction` membuat pesanan Snap dengan harga dari `MIDTRANS_PRO_PRICE` (harga dan masa aktif tidak pernah dari browser); `POST /api/webhook/midtrans` memverifikasi tanda tangan sha512, merchant, lingkungan, dan jumlah, lalu mengaktifkan Pro secara idempoten. Masa aktif menambah dari tanggal berakhir saat memperpanjang, dan hak Pro dari pesanan aktif dicabut otomatis saat `cancel`, `refund`, atau `chargeback`. Kesiapan kunci Sandbox/Production diperiksa lewat `payments` pada `/api/config`; lihat [Tahap 3](./docs/tahap-3-pembayaran.md) sebelum mengatur Secret Cloudflare.
+
+Endpoint memvalidasi input/origin dan Firebase ID token di semua lingkungan. Kuota permanen memakai transaksi Firestore; rate guard tambahan 5 percobaan per 10 menit dalam memori Worker bukan sumber kuota. Timeout AI 90 detik. PRD yang tidak lengkap ditolak tanpa memakai kuota; normalisasi hanya menyelaraskan struktur deterministik. Demo menggunakan contoh lokal.
 
 ## Pengecekan
 
@@ -19,6 +23,9 @@ Endpoint memvalidasi input, memeriksa asal permintaan, serta memverifikasi Fireb
 npx tsc --noEmit --incremental false
 npm run test:planning
 npm run test:errors
+npm run test:quota
+npm run test:server
+npm run test:billing
 npm run build
 ```
 
@@ -28,13 +35,13 @@ Tes kegagalan memakai layanan tiruan: timeout, koneksi putus, kuota AI, respons 
 
 Pesan kegagalan ditampilkan melalui toast dan peringatan yang tetap di halaman. Pemuatan proyek memiliki batas 15 detik dan tombol Coba lagi; kegagalan tidak dianggap daftar kosong. Generator memiliki batas 90 detik di server dan 105 detik pada permintaan browser. Hasil PRD sebelumnya tetap tersedia jika penyusunan ulang gagal.
 
-Penulisan Firestore menunggu konfirmasi backend. Setelah 15 detik tanpa konfirmasi, aplikasi menjelaskan status tertunda dan meminta pengguna menjaga halaman terbuka. Penyimpanan yang tertunda tidak dilaporkan berhasil/gagal berdasarkan timer; pemanggilan ulang untuk rencana yang sama memakai operasi yang sama agar tidak membuat duplikat. Status checklist baru berubah setelah konfirmasi. Ini mengikuti [semantik Promise penulisan Firestore](https://firebase.google.com/docs/reference/js/firestore#updatedoc).
+Penulisan proyek melalui API server menunggu konfirmasi transaksi. Setelah 15 detik aplikasi menampilkan status tertunda; batas permintaan proyek 60 detik. Jika respons terputus, retry ID deterministik mengambil proyek yang sama tanpa duplikat. Status checklist berubah setelah konfirmasi; perubahan bersamaan digabungkan dalam transaksi.
 
 Saat browser offline, permintaan cloud baru ditolak dengan pesan yang ramah. Draft lokal, contoh lokal, dan ekspor PRD tetap dapat dipakai. Data yang tidak dapat dibaca tidak dihapus secara otomatis. Halaman error aplikasi menyediakan tombol coba lagi tanpa menghapus penyimpanan.
 
 Tes manual akun: masuk → susun PRD → Simpan proyek → centang tugas → muat ulang. Pastikan proyek dan progres tetap terlihat di akun yang sama; akun lain tidak boleh membaca proyek tersebut. Mode demo dan akun Firebase memiliki penyimpanan terpisah; proyek demo tidak diunggah otomatis.
 
-Komponen baru: pemilih stack, generator AI/contoh, dokumen/diagram, login akun, daftar proyek, dan checklist tugas. Draft serta pilihan stack tersimpan lokal. Proyek hanya disimpan ke Firestore setelah **Simpan proyek** berhasil.
+Draft/pilihan stack tersimpan lokal. PRD AI terkonfirmasi sudah tersimpan pada ledger generasi bersama pemakaian kuota; **Simpan proyek** menambahkan hasil itu ke daftar proyek. UI memperlihatkan paket, kuota tersedia/terpakai/direservasi, masa aktif, dan kondisi read-only setelah Pro berakhir.
 
 `.dev.vars` hanya untuk preview lokal. Untuk deployment, isi binding runtime yang sama pada hosting dan tambahkan domain hosting di Firebase authorized domains. Tech stack yang dipilih pengguna mendeskripsikan aplikasinya, bukan mengubah hosting atau layanan Rencanain.
 
