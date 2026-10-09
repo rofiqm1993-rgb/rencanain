@@ -7,3 +7,11 @@ export type AccountSnapshot = {
 export type PaymentInfo = {
   ready: boolean; keyPresent: boolean; mode: "sandbox" | "production"; price: number; days: number;
 };
+
+// Format tanggal ringkas untuk tampilan paket: "8 Nov 2026" (zona waktu Jakarta).
+const tanggalJakarta = new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Jakarta" });
+export function tanggalRingkas(value: string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "" : tanggalJakarta.format(date);
+}

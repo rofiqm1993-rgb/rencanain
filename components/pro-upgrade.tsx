@@ -6,10 +6,9 @@ import { requestJSON } from "@/lib/client-request";
 import { userError } from "@/lib/user-errors";
 import { authHeaders } from "@/lib/firebase-client";
 import type { User } from "firebase/auth";
-import type { AccountSnapshot, PaymentInfo } from "@/lib/account";
+import { tanggalRingkas, type AccountSnapshot, type PaymentInfo } from "@/lib/account";
 
 const rupiah = (value: number) => `Rp ${value.toLocaleString("id-ID")}`;
-const jakarta = (value: string | null | undefined) => value ? `${new Date(value).toLocaleString("id-ID", { timeZone: "Asia/Jakarta" })} WIB` : "";
 type PaymentOrder = { orderId: string; amount: number; days: number; redirectUrl: string; expiresAt: string };
 
 export default function ProUpgrade({ payments, user, account, onRefresh }: { payments?: PaymentInfo | null; user: User | null; account: AccountSnapshot | null; onRefresh: () => void }) {
@@ -33,7 +32,7 @@ export default function ProUpgrade({ payments, user, account, onRefresh }: { pay
   if (!user) return <p className="help-note">Masuk ke akun Anda untuk mengaktifkan Pro.</p>;
   if (!payments) return <p className="help-note">Status pembayaran belum dapat dibaca dari server. Muat ulang halaman.</p>;
   return <>
-    <p>{active ? `Pro aktif sampai ${jakarta(account?.expiresAt)}.` : account ? "Paket Beta Gratis: 1 PRD AI per akun." : "Status paket sedang diperiksa…"}</p>
+    <p>{active ? `Pro aktif sampai ${tanggalRingkas(account?.expiresAt)}.` : account ? "Paket Beta Gratis: 1 PRD AI per akun." : "Status paket sedang diperiksa…"}</p>
     {payments.ready ? <>
       <p className="help-note">{rupiah(payments.price)} untuk {payments.days} hari akses Pro{payments.mode === "sandbox" ? " · lingkungan uji (sandbox), belum memakai uang sungguhan" : ""}.</p>
       <div className="composer-bottom">
