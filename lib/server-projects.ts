@@ -38,8 +38,25 @@ export function projectService(store: TransactionalStore, policy: QuotaPolicy, c
         return project;
       });
     },
+    async updateDetails(uid: string, id: string, title: string, summary: string): Promise<Project> {
+      return store.run(async tx => {
+        const path = `${ownerPath(uid)}/projects/${id}`;
+        requireWritable(await entitlement(tx, uid, clock(), policy));
+        const value = await tx.get(path);
+        if (!value) throw new ServiceError(404, "project-missing", "Proyek belum ditemukan di akun ini.");
+        const project = projectSchema.parse(decodeProjectFromFirestore(value));
+        const updated = projectSchema.parse({ ...project, prd: { ...project.prd, title, summary } });
+        tx.set(path, encodeProjectForFirestore(updated));
+        return updated;
+      });
+    },
     async remove(uid: string, id: string) {
-      await store.run(async tx => { requireWritable(await entitlement(tx, uid, clock(), policy)); tx.delete(`${ownerPath(uid)}/projects/${id}`); });
+      await store.run(async tx => {
+        requireWritable(await entitlement(tx, uid, clock(), policy));
+        const path = `${ownerPath(uid)}/projects/${id}`;
+        if (!await tx.get(path)) throw new ServiceError(404, "project-missing", "Proyek belum ditemukan di akun ini.");
+        tx.delete(path);
+      });
     },
   };
 }

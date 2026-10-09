@@ -51,7 +51,22 @@ export const projectRepository = {
   async remove(id: string, uid: string | null) {
     if (uid) requireConnection();
     if (uid) await serverWrite(uid, "DELETE", { id });
-    else localStorage.setItem(key, JSON.stringify(localProjects().filter(p => p.id !== id)));
+    else {
+      const projects = localProjects();
+      if (!projects.some(p => p.id === id)) throw new UserFacingError("project-missing", "Proyek tidak ditemukan. Muat ulang daftar proyek.");
+      localStorage.setItem(key, JSON.stringify(projects.filter(p => p.id !== id)));
+    }
+  },
+  async updateDetails(project: Project, title: string, summary: string, uid: string | null): Promise<Project> {
+    if (uid) {
+      requireConnection();
+      return parseProject(await serverWrite(uid, "PUT", { id: project.id, title, summary }));
+    }
+    const projects = localProjects();
+    if (!projects.some(p => p.id === project.id)) throw new UserFacingError("project-missing", "Proyek tidak ditemukan. Muat ulang daftar proyek.");
+    const updated = parseProject({ ...project, prd: { ...project.prd, title, summary } });
+    localStorage.setItem(key, JSON.stringify(projects.map(p => p.id === project.id ? updated : p)));
+    return updated;
   },
   async setTask(project: Project, taskId: string, done: boolean, uid: string | null): Promise<Project> {
     if (uid) requireConnection();

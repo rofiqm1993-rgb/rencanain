@@ -23,7 +23,8 @@ export function taskList(prd: PRD) { return prd.phases.flatMap(phase => phase.fe
 
 function domain(idea: string) {
   if (/keuangan|anggaran|pengeluaran|budget/i.test(idea)) return { name: "Keuangan", entity: "transaksi", fields: ["amount: number (> 0)", "type: income | expense", "category_id: string", "date: date", "note: string (opsional)"] };
-  if (/stok|gudang|inventori|barang/i.test(idea)) return { name: "Stok", entity: "barang", fields: ["name: string", "sku: string", "quantity: number (>= 0)", "unit: string"] };
+  if (/daftar belanja|belanja|shopping/i.test(idea)) return { name: "Belanja", entity: "item_belanja", fields: ["name: string", "quantity: number (> 0)", "unit: string", "done: boolean", "note: string (opsional)"] };
+  if (/stok|gudang|inventori|persediaan/i.test(idea)) return { name: "Stok", entity: "barang", fields: ["name: string", "sku: string", "quantity: number (>= 0)", "unit: string"] };
   if (/belajar|kursus|kuliah|pelajar/i.test(idea)) return { name: "Belajar", entity: "materi", fields: ["title: string", "content: string", "status: draft | published"] };
   if (/booking|reservasi|janji/i.test(idea)) return { name: "Reservasi", entity: "reservasi", fields: ["service_id: string", "start_at: datetime", "status: pending | confirmed | cancelled"] };
   return { name: "Proyek", entity: "data_utama", fields: ["name: string", "description: string", "status: string"] };

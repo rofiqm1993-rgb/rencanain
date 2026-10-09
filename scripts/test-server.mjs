@@ -4,7 +4,7 @@ import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
 import { generateKeyPair, exportPKCS8, jwtVerify } from "jose";
 await mkdir("outputs", { recursive: true });
-await build({ stdin: { contents: 'export * from "./lib/server-store.ts"; export * from "./lib/server-quota.ts"; export * from "./lib/server-projects.ts"; export * from "./lib/server-runtime.ts"; export * from "./lib/prd.ts"; export * from "./lib/clarification.ts"; export * from "./lib/tech-stack.ts"; export { POST as generate, GET as recover } from "./app/api/generate/route.ts"; export { GET as account } from "./app/api/account/route.ts"; export { POST as save, PATCH as task, DELETE as remove } from "./app/api/projects/route.ts";', resolveDir: process.cwd() }, bundle: true, platform: "node", format: "esm", outfile: "outputs/server-test-module.mjs", plugins: [{ name: "isolated-auth-env", setup(b) {
+await build({ stdin: { contents: 'export * from "./lib/server-store.ts"; export * from "./lib/server-quota.ts"; export * from "./lib/server-projects.ts"; export * from "./lib/server-runtime.ts"; export * from "./lib/prd.ts"; export * from "./lib/clarification.ts"; export * from "./lib/tech-stack.ts"; export { POST as generate, GET as recover } from "./app/api/generate/route.ts"; export { GET as account } from "./app/api/account/route.ts"; export { POST as save, PUT as edit, PATCH as task, DELETE as remove } from "./app/api/projects/route.ts";', resolveDir: process.cwd() }, bundle: true, platform: "node", format: "esm", outfile: "outputs/server-test-module.mjs", plugins: [{ name: "isolated-auth-env", setup(b) {
   b.onResolve({ filter: /^cloudflare:workers$/ }, () => ({ path: "env", namespace: "fixture" }));
   // Identity verification has its own error tests. All datastore and quota operations here are real implementation code.
   b.onResolve({ filter: /server-auth$/ }, () => ({ path: "auth", namespace: "fixture" }));
@@ -91,6 +91,12 @@ try {
   const saved = await m.save(request("projects", "api", plan)); assert.equal(saved.status, 200); const project = await saved.json();
   const savedAgain = await m.save(request("projects", "api", plan)); assert.equal((await savedAgain.json()).id, project.id);
   const updated = await m.task(request("projects", "api", { id: project.id, taskId: "p1-f1-t1", done: true }, "PATCH")); assert.equal(updated.status, 200); assert((await updated.json()).tasks["p1-f1-t1"]);
+  const edited = await m.edit(request("projects", "api", { id: project.id, title: "Judul yang diperbarui", summary: "Ringkasan yang diperbarui" }, "PUT"));
+  assert.equal(edited.status, 200);
+  const editedProject = await edited.json(); assert.equal(editedProject.prd.title, "Judul yang diperbarui"); assert(editedProject.tasks["p1-f1-t1"]); assert.equal(editedProject.prd.phases.length, project.prd.phases.length);
+  assert.equal((await m.edit(request("projects", "other", { id: project.id, title: "Salah akun", summary: "Ditolak" }, "PUT"))).status, 404);
+  assert.equal((await m.edit(request("projects", "api", { id: project.id, title: "", summary: "Kosong" }, "PUT"))).status, 400);
+  assert.equal((await m.edit(request("projects", "api", { id: project.id, title: "CSRF", summary: "Ditolak" }, "PUT", "https://attacker.invalid"))).status, 403);
   assert.equal((await m.task(request("projects", "other", { id: project.id, taskId: "p1-f1-t1", done: true }, "PATCH"))).status, 404);
   assert.equal((await m.save(request("projects", null, plan))).status, 401);
   assert.equal((await m.save(request("projects", "api", plan, "POST", "https://attacker.invalid"))).status, 403);
@@ -98,6 +104,7 @@ try {
   db.set("users/api/billing/account", { package: "pro", proStartedAt: new Date(Date.now() - 30 * 86400000).toISOString(), proExpiresAt: new Date(Date.now() - 1).toISOString() });
   assert.equal((await m.generate(request("generate", "api", { ...input, requestId: crypto.randomUUID() }))).status, 403);
   assert.equal((await m.task(request("projects", "api", { id: project.id, taskId: "p1-f1-t1", done: false }, "PATCH"))).status, 403);
+  assert.equal((await m.edit(request("projects", "api", { id: project.id, title: "Expired", summary: "Ditolak" }, "PUT"))).status, 403);
   assert.equal((await m.remove(request("projects", "api", { id: project.id }, "DELETE"))).status, 403);
   assert.equal((await m.save(request("projects", "api", { ...plan, source: "example", generatedAt: new Date().toISOString() }))).status, 403);
   const oldResult = await m.recover(request(`generate?requestId=${id}`, "api", undefined, "GET")); assert.equal(oldResult.status, 200); assert.equal((await oldResult.json()).status, "completed");

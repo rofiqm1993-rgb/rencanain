@@ -61,7 +61,8 @@ export function readDraft(raw: string | null): ClarificationDraft | null {
 
 export function featureOptions(idea: string): string[] {
   const text = idea.toLowerCase();
-  if (/stok|inventori|gudang|barang/.test(text)) return ["Catat barang masuk dan keluar", "Pantau stok barang", "Peringatan stok minimum", "Laporan pergerakan barang", "Cari barang", "Ekspor data stok"];
+  if (/daftar belanja|belanja|shopping/.test(text)) return ["Buat daftar belanja", "Tandai barang yang sudah dibeli", "Kelompokkan barang", "Bagikan daftar dengan keluarga", "Cari barang di daftar", "Lihat riwayat belanja"];
+  if (/stok|inventori|gudang|persediaan/.test(text)) return ["Catat barang masuk dan keluar", "Pantau stok barang", "Peringatan stok minimum", "Laporan pergerakan barang", "Cari barang", "Ekspor data stok"];
   if (/keuangan|uang|anggaran|pengeluaran|budget/.test(text)) return ["Catat pemasukan dan pengeluaran", "Atur kategori transaksi", "Tetapkan anggaran", "Ringkasan bulanan", "Cari transaksi", "Ekspor laporan"];
   if (/belajar|kuliah|pelajar|kursus|pendidikan/.test(text)) return ["Kelola materi belajar", "Latihan dan kuis", "Pantau progres belajar", "Jadwal belajar", "Cari materi", "Simpan catatan"];
   if (/booking|reservasi|janji|jadwal/.test(text)) return ["Lihat jadwal tersedia", "Buat reservasi", "Kelola pembatalan", "Pengingat jadwal", "Riwayat reservasi", "Kelola layanan"];
